@@ -61,3 +61,16 @@ class TestSecretsClient(TestCase):
         # Check the result
         self.assertEqual(result["data"]["created_time"], "2025-03-12T10:00:00Z")
 
+
+
+import boto3
+
+client = boto3.client('route53')
+
+response = client.create_hosted_zone(
+    Name='example.com.',   # Replace with your domain name (must end with a dot)
+    CallerReference='unique-string-1234'  # Unique identifier for the request
+)
+
+hosted_zone_id = response['HostedZone']['Id']
+print(f"Hosted Zone Created: {hosted_zone_id}")
