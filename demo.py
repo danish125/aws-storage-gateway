@@ -74,3 +74,26 @@ response = client.create_hosted_zone(
 
 hosted_zone_id = response['HostedZone']['Id']
 print(f"Hosted Zone Created: {hosted_zone_id}")
+
+
+
+
+
+import boto3
+
+client = boto3.client('route53')
+
+response = client.create_hosted_zone(
+    Name='example.com.',   # Replace with your domain name (must end with a dot)
+    CallerReference='unique-string-1234',  # Unique identifier for the request
+    VPC={
+        'VPCRegion': 'us-east-1',  # Replace with your VPC region
+        'VPCId': 'vpc-12345678'    # Replace with your VPC ID
+    },
+    HostedZoneConfig={
+        'PrivateZone': True
+    }
+)
+
+hosted_zone_id = response['HostedZone']['Id']
+print(f"Private Hosted Zone Created: {hosted_zone_id}")
