@@ -97,3 +97,48 @@ response = client.create_hosted_zone(
 
 hosted_zone_id = response['HostedZone']['Id']
 print(f"Private Hosted Zone Created: {hosted_zone_id}")
+
+
+
+
+
+import boto3
+
+# Initialize the Route53 client
+client = boto3.client('route53')
+
+# Define the hosted zone ID
+HOSTED_ZONE_ID = 'Z123456789EXAMPLE'
+
+# Define the record details
+RECORD_NAME = 'example.yourdomain.com.'
+RECORD_TYPE = 'A'
+RECORD_VALUE = '192.0.2.44'  # IP address for A record
+
+def create_route53_record():
+    response = client.change_resource_record_sets(
+        HostedZoneId=HOSTED_ZONE_ID,
+        ChangeBatch={
+            'Comment': 'Creating A record',
+            'Changes': [
+                {
+                    'Action': 'CREATE',
+                    'ResourceRecordSet': {
+                        'Name': RECORD_NAME,
+                        'Type': RECORD_TYPE,
+                        'TTL': 300,  # Time to live in seconds
+                        'ResourceRecords': [
+                            {
+                                'Value': RECORD_VALUE
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    )
+    print(response)
+
+if __name__ == "__main__":
+    create_route53_record()
+
