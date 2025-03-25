@@ -387,3 +387,10 @@ jobs:
             echo "✅ Terraform token is still valid."
           fi
 
+
+
+curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request GET \
+  https://app.terraform.io/api/v2/users/user-1Hv8xv92iNBgrR2D/authentication-tokens | jq '.data[0].attributes | {expired_at: .["expired-at"], description: .description}'
