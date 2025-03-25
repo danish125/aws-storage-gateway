@@ -191,3 +191,66 @@ jobs:
             echo "Terraform token is still valid."
           fi
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+name: Check Terraform Token Expiry
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs every day at midnight UTC
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  check-token-expiry:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Terraform Token Expiry
+        env:
+          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+        run: |
+          if [ -z "$TF_API_TOKEN" ]; then
+            echo "Terraform API token is missing!"
+            exit 1
+          fi
+
+          # Query Terraform Cloud API for token details
+          RESPONSE=$(curl -s -H "Authorization: Bearer $TF_API_TOKEN" \
+                             -H "Content-Type: application/json" \
+                             "https://app.terraform.io/api/v2/account/details")
+
+          # Extract expiry date
+          EXPIRY_DATE=$(echo "$RESPONSE" | jq -r '.data.attributes.token.expired_at')
+
+          if [ "$EXPIRY_DATE" == "null" ]; then
+            echo "Could not retrieve token expiry date."
+            exit 1
+          fi
+
+          echo "Terraform API Token expires on: $EXPIRY_DATE"
+
+          # Convert expiry date to Unix timestamp
+          EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s)
+          CURRENT_TIMESTAMP=$(date +%s)
+
+          # Check if the token is expired or about to expire (within 3 days)
+          if [ "$CURRENT_TIMESTAMP" -ge "$EXPIRY_TIMESTAMP" ]; then
+            echo "Terraform token has expired!"
+            exit 1
+          elif [ $((EXPIRY_TIMESTAMP - CURRENT_TIMESTAMP)) -le 259200 ]; then
+            echo "Warning: Terraform token will expire in less than 3 days!"
+            exit 1
+          else
+            echo "Terraform token is still valid."
+          fi
