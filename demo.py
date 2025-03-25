@@ -302,3 +302,6 @@ jobs:
             exit 1
           fi
 
+
+
+https://developer.hashicorp.com/terraform/cloud-docs/api-docs/team-tokens#show-a-team-token
