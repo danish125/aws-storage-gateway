@@ -327,3 +327,63 @@ jobs:
 
 
 https://developer.hashicorp.com/terraform/cloud-docs/api-docs/team-tokens#show-a-team-token
+
+
+
+
+
+
+name: Check Terraform User Token Expiry
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs daily
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  check-token-expiry:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Terraform User Token Expiry
+        env:
+          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+          TF_TOKEN_ID: ${{ secrets.TF_TOKEN_ID }}
+        run: |
+          if [ -z "$TF_API_TOKEN" ] || [ -z "$TF_TOKEN_ID" ]; then
+            echo "Terraform API token or Token ID is missing!"
+            exit 1
+          fi
+
+          # Query Terraform Cloud API for token details
+          RESPONSE=$(curl -s -H "Authorization: Bearer $TF_API_TOKEN" \
+                             -H "Content-Type: application/json" \
+                             "https://app.terraform.io/api/v2/authentication-tokens/$TF_TOKEN_ID")
+
+          # Extract expiry date
+          EXPIRY_DATE=$(echo "$RESPONSE" | jq -r '.data.attributes.expired-at')
+
+          if [ "$EXPIRY_DATE" == "null" ]; then
+            echo "Could not retrieve token expiry date. Check permissions."
+            exit 1
+          fi
+
+          echo "Terraform User Token expires on: $EXPIRY_DATE"
+
+          # Convert expiry date to Unix timestamp
+          EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s)
+          CURRENT_TIMESTAMP=$(date +%s)
+
+          # Calculate days left before expiry
+          DAYS_LEFT=$(( (EXPIRY_TIMESTAMP - CURRENT_TIMESTAMP) / 86400 ))
+
+          echo "Days left until token expiry: $DAYS_LEFT"
+
+          # Trigger alert if token is expiring in 10 days or less
+          if [ "$DAYS_LEFT" -le 10 ]; then
+            echo "⚠️ Warning: Terraform token will expire in $DAYS_LEFT days! ⚠️"
+            exit 1
+          else
+            echo "✅ Terraform token is still valid."
+          fi
+
