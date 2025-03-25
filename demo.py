@@ -268,7 +268,7 @@ jobs:
 
 
 
-name: Verify Terraform Token
+name: Check Terraform Token Expiry
 
 on:
   schedule:
@@ -276,30 +276,52 @@ on:
   workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  check-token-validity:
+  check-token-expiry:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Validate Terraform Token
+      - name: Check Terraform Token Expiry
         env:
           TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+          TF_ORG_NAME: "your-terraform-org"  # Replace with your org name
         run: |
           if [ -z "$TF_API_TOKEN" ]; then
             echo "Terraform API token is missing!"
             exit 1
           fi
 
-          # Query Terraform Cloud API to check if token is valid
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-                        -H "Authorization: Bearer $TF_API_TOKEN" \
-                        -H "Content-Type: application/json" \
-                        "https://app.terraform.io/api/v2/account/details")
+          # Query Terraform Cloud API for team token details
+          RESPONSE=$(curl -s -H "Authorization: Bearer $TF_API_TOKEN" \
+                             -H "Content-Type: application/json" \
+                             "https://app.terraform.io/api/v2/organizations/$TF_ORG_NAME/team-tokens")
 
-          if [ "$RESPONSE" -eq 200 ]; then
-            echo "Terraform API Token is valid ✅"
-          else
-            echo "Terraform API Token is invalid or expired! ❌"
+          # Extract expiry date from response
+          EXPIRY_DATE=$(echo "$RESPONSE" | jq -r '.data[].attributes.expired-at')
+
+          if [ "$EXPIRY_DATE" == "null" ]; then
+            echo "Could not retrieve token expiry date."
             exit 1
+          fi
+
+          echo "Terraform Team Token expires on: $EXPIRY_DATE"
+
+          # Convert expiry date to Unix timestamp
+          EXPIRY_TIMESTAMP=$(date -d "$EXPIRY_DATE" +%s)
+          CURRENT_TIMESTAMP=$(date +%s)
+
+          # Calculate days left before expiry
+          DAYS_LEFT=$(( (EXPIRY_TIMESTAMP - CURRENT_TIMESTAMP) / 86400 ))
+
+          echo "Days left until token expiry: $DAYS_LEFT"
+
+          # Trigger alert if token is expiring in 10 days or less
+          if [ "$DAYS_LEFT" -le 10 ]; then
+            echo "⚠️ Warning: Terraform token will expire in $DAYS_LEFT days! ⚠️"
+            exit 1
+          else
+            echo "✅ Terraform token is still valid."
+          fi
+
           fi
 
 
