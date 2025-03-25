@@ -254,3 +254,51 @@ jobs:
           else
             echo "Terraform token is still valid."
           fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+name: Verify Terraform Token
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs daily at midnight UTC
+  workflow_dispatch:  # Allows manual trigger
+
+jobs:
+  check-token-validity:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate Terraform Token
+        env:
+          TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+        run: |
+          if [ -z "$TF_API_TOKEN" ]; then
+            echo "Terraform API token is missing!"
+            exit 1
+          fi
+
+          # Query Terraform Cloud API to check if token is valid
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+                        -H "Authorization: Bearer $TF_API_TOKEN" \
+                        -H "Content-Type: application/json" \
+                        "https://app.terraform.io/api/v2/account/details")
+
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "Terraform API Token is valid ✅"
+          else
+            echo "Terraform API Token is invalid or expired! ❌"
+            exit 1
+          fi
+
