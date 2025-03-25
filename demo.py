@@ -142,3 +142,52 @@ def create_route53_record():
 if __name__ == "__main__":
     create_route53_record()
 
+
+
+
+
+
+name: Check Terraform Token Expiry
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Runs daily at midnight UTC
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  check-token-expiry:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check Terraform Token Expiry
+        env:
+          TERRAFORM_TOKEN: ${{ secrets.TERRAFORM_TOKEN }}
+        run: |
+          if [ -z "$TERRAFORM_TOKEN" ]; then
+            echo "Terraform token is missing!"
+            exit 1
+          fi
+
+          # Decode the token to extract expiry (assuming JWT format)
+          EXPIRY_TIMESTAMP=$(echo "$TERRAFORM_TOKEN" | jq -R 'split(".") | .[1] | @base64d | fromjson | .exp')
+          
+          if [ -z "$EXPIRY_TIMESTAMP" ]; then
+            echo "Failed to extract expiry timestamp!"
+            exit 1
+          fi
+
+          CURRENT_TIMESTAMP=$(date +%s)
+          EXPIRY_DATE=$(date -d @$EXPIRY_TIMESTAMP +"%Y-%m-%d %H:%M:%S")
+
+          echo "Terraform token expires at: $EXPIRY_DATE"
+
+          if [ "$CURRENT_TIMESTAMP" -ge "$EXPIRY_TIMESTAMP" ]; then
+            echo "Terraform token has expired!"
+            exit 1
+          else
+            echo "Terraform token is still valid."
+          fi
+
