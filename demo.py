@@ -394,3 +394,23 @@ curl \
   --header "Content-Type: application/vnd.api+json" \
   --request GET \
   https://app.terraform.io/api/v2/users/user-1Hv8xv92iNBgrR2D/authentication-tokens | jq '.data[0].attributes | {expired_at: .["expired-at"], description: .description}'
+
+
+
+
+
+# Convert expiration date to seconds since epoch
+expired_seconds=$(date -d "$expired_at" +%s)
+
+# Get the current time in seconds
+current_seconds=$(date +%s)
+
+# Calculate the difference in days
+diff_days=$(( (expired_seconds - current_seconds) / 86400 ))
+
+# Check if within 10 days
+if [ "$diff_days" -le 10 ] && [ "$diff_days" -ge 0 ]; then
+    echo "Expired within 10 days"
+else
+    echo "Not expiring within 10 days"
+fi
