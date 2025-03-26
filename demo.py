@@ -414,3 +414,28 @@ if [ "$diff_days" -le 10 ] && [ "$diff_days" -ge 0 ]; then
 else
     echo "Not expiring within 10 days"
 fi
+
+
+
+
+
+
+
+
+
+
+
+- name: Publish success message to SNS
+  run: |
+    if [ ${{ job.status }} == 'success' ]; then
+      aws sns publish \
+        --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
+        --message "The GitHub Actions workflow completed successfully!" \
+        --subject "GitHub Actions Success Notification"
+    else
+      aws sns publish \
+        --topic-arn ${{ secrets.SNS_TOPIC_ARN }} \
+        --message "The GitHub Actions workflow failed." \
+        --subject "GitHub Actions Failure Notification"
+    fi
+
