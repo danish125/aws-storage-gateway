@@ -512,3 +512,31 @@ if __name__ == '__main__':
     unittest.main()
 
 
+
+
+
+
+
+
+
+
+class TestTerraformToken(unittest.TestCase):
+    @patch('requests.post')
+    def test_get_token(self, mock_post):
+        # Mock response structure
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            'data': {
+                'attributes': {
+                    'token': 'mocked-token'
+                }
+            }
+        }
+        mock_post.return_value = mock_response
+
+        # Call your function
+        token = get_token('https://dummy.url', headers={})
+
+        # Assert the result
+        self.assertEqual(token, 'mocked-token')
+
