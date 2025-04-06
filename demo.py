@@ -490,3 +490,25 @@ def create_secret(secret_name, role_name=None, region_name='us-east-1'):
             print(f"Error creating secret: {e}")
         return None
 
+
+
+
+
+
+import os
+import unittest
+from unittest.mock import patch
+
+def get_secret_name():
+    return os.environ.get('PRD_SECRET_NAME')
+
+class TestSecretEnv(unittest.TestCase):
+    @patch.dict(os.environ, {'PRD_SECRET_NAME': 'mocked-secret-name'})
+    def test_get_secret_name(self):
+        secret_name = get_secret_name()
+        self.assertEqual(secret_name, 'mocked-secret-name')
+
+if __name__ == '__main__':
+    unittest.main()
+
+
