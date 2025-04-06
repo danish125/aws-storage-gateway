@@ -439,3 +439,54 @@ fi
         --subject "GitHub Actions Failure Notification"
     fi
 
+
+
+
+
+import boto3
+import json
+from botocore.exceptions import ClientError
+
+def create_secret(secret_name, role_name=None, region_name='us-east-1'):
+    secret_value = json.dumps({'value': 'abc'})
+
+    # Function to assume a role
+    def assume_role(role_arn):
+        sts_client = boto3.client('sts')
+        response = sts_client.assume_role(
+            RoleArn=role_arn,
+            RoleSessionName='AssumeRoleSession'
+        )
+        creds = response['Credentials']
+        return {
+            'aws_access_key_id': creds['AccessKeyId'],
+            'aws_secret_access_key': creds['SecretAccessKey'],
+            'aws_session_token': creds['SessionToken']
+        }
+
+    # Determine the client to use
+    if role_name:
+        # Construct full role ARN (modify this if your role is in another account or path is different)
+        account_id = boto3.client('sts').get_caller_identity().get('Account')
+        role_arn = f'arn:aws:iam::{account_id}:role/{role_name}'
+        assumed_creds = assume_role(role_arn)
+        client = boto3.client('secretsmanager', region_name=region_name, **assumed_creds)
+    else:
+        client = boto3.client('secretsmanager', region_name=region_name)
+
+    # Create the secret
+    try:
+        response = client.create_secret(
+            Name=secret_name,
+            SecretString=secret_value,
+            Description='Secret created via script'
+        )
+        print(f"Secret {secret_name} created successfully.")
+        return response
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceExistsException':
+            print(f"Secret {secret_name} already exists.")
+        else:
+            print(f"Error creating secret: {e}")
+        return None
+
