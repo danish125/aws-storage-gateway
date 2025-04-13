@@ -540,3 +540,76 @@ class TestTerraformToken(unittest.TestCase):
         # Assert the result
         self.assertEqual(token, 'mocked-token')
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+# Replace with your VPC ID and optionally subnet ID
+variable "vpc_id" {
+  default = "vpc-xxxxxxxx"
+}
+
+resource "aws_security_group" "tfc_agent_sg" {
+  name        = "tfc-agent-sg"
+  description = "Allow outbound HTTPS and optional SSH"
+  vpc_id      = var.vpc_id
+
+  egress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["your-ip/32"] # Replace with your IP if needed for SSH
+  }
+}
+
+resource "aws_instance" "tfc_agent" {
+  ami           = "ami-0c02fb55956c7d316" # Amazon Linux 2 AMI in us-east-1
+  instance_type = "t3.micro"
+  subnet_id     = "subnet-xxxxxxxx"       # Add your subnet ID here
+  key_name      = "your-key-name"         # Optional
+
+  vpc_security_group_ids = [aws_security_group.tfc_agent_sg.id]
+
+  user_data = <<-EOF
+              #!/bin/bash
+              yum update -y
+              amazon-linux-extras install docker -y
+              service docker start
+              usermod -aG docker ec2-user
+              docker run -d \\
+                --name=tfc-agent \\
+                -e TFC_AGENT_TOKEN=<your-agent-token> \\
+                -e TFC_AGENT_NAME="ec2-agent" \\
+                hashicorp/tfc-agent:latest
+              EOF
+
+  tags = {
+    Name = "Terraform Cloud Agent"
+  }
+}
+
+
