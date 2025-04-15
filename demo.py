@@ -613,3 +613,9 @@ resource "aws_instance" "tfc_agent" {
 }
 
 
+
+    steps:
+      - run: docker run -d -e TFC_AGENT_TOKEN -e TFC_AGENT_NAME hashicorp/tfc-agent:latest
+      - run: sleep 120
+      - run: docker stop -t 10 $(docker ps -q)
+
