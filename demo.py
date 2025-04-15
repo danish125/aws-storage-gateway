@@ -619,3 +619,22 @@ resource "aws_instance" "tfc_agent" {
       - run: sleep 120
       - run: docker stop -t 10 $(docker ps -q)
 
+
+
+
+    environment_variable {
+      name  = "TFC_AGENT_TOKEN"
+      value = "${var.secret_arn}:TFC_AGENT_TOKEN::"
+      type = "SECRETS_MANAGER"
+    }
+    environment_variable {
+      name  = "TFC_AGENT_NAME"
+      value = "agent"
+    #   type  = "PARAMETER_STORE"
+
+    }
+
+variable "secret_arn" {
+  type = string
+}
+
