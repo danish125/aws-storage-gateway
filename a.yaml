@@ -1,0 +1,28 @@
+name: Hello World
+on: [push]
+jobs:
+  Hello-World-Job:
+    runs-on:
+      - codebuild-runner-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      # - run: docker run -d -e TFC_AGENT_TOKEN -e TFC_AGENT_NAME hashicorp/tfc-agent:latest
+      # - run: sleep 15
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install Terraform Latest Version
+        run: |
+          echo "Installing latest Terraform version..."
+          LATEST_VERSION=$(curl -s https://checkpoint-api.hashicorp.com/v1/check/terraform | jq -r .current_version)
+          echo "Latest version: $LATEST_VERSION"
+          curl -fsSL https://releases.hashicorp.com/terraform/${LATEST_VERSION}/terraform_${LATEST_VERSION}_linux_amd64.zip -o terraform.zip
+          unzip terraform.zip
+          mv terraform /usr/local/bin/
+      - run: terraform -v
+      # - run: terraform plan
+      - run: ls
+      - run: pwd
+      # - run: |
+      #     CONTAINER_ID=$(docker ps -q)
+      #     echo "Killing container $CONTAINER_ID"
+      #     docker kill $CONTAINER_ID
+      #     docker rm -f $CONTAINER_ID
