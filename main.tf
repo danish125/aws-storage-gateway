@@ -129,3 +129,121 @@ conn = psycopg2.connect(
 openssl s_client -connect <proxy-endpoint>:5432 -tls1_1
 
 I have created RDS Postgres Database behind RDS Proxy . I have put in the ssl_min_protocol_version to TLSv1.2. How can I try to make connection with TLSv1.1 to check if it rejects or not
+
+
+
+
+
+
+
+
+
+
+
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+# 1. VPC
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+  tags = {
+    Name = "main-vpc"
+  }
+}
+
+# 2. Internet Gateway for Public Subnets
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "main-igw"
+  }
+}
+
+# 3. Public Subnets (2 AZs)
+resource "aws_subnet" "public" {
+  count             = 2
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 4, count.index)
+  map_public_ip_on_launch = true
+  availability_zone = element(data.aws_availability_zones.available.names, count.index)
+  tags = {
+    Name = "public-subnet-${count.index + 1}"
+  }
+}
+
+# 4. Private Subnets (2 AZs)
+resource "aws_subnet" "private" {
+  count             = 2
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 4, count.index + 2)
+  availability_zone = element(data.aws_availability_zones.available.names, count.index)
+  tags = {
+    Name = "private-subnet-${count.index + 1}"
+  }
+}
+
+# 5. Public Route Table
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "public-rt"
+  }
+}
+
+resource "aws_route" "public_internet_access" {
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.igw.id
+}
+
+resource "aws_route_table_association" "public" {
+  count          = 2
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+# 6. Elastic IP for NAT Gateway
+resource "aws_eip" "nat" {
+  count = 1
+  vpc   = true
+}
+
+# 7. NAT Gateway in first public subnet
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat[0].id
+  subnet_id     = aws_subnet.public[0].id
+  tags = {
+    Name = "main-nat"
+  }
+  depends_on = [aws_internet_gateway.igw]
+}
+
+# 8. Private Route Table
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "private-rt"
+  }
+}
+
+resource "aws_route" "private_nat_access" {
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.nat.id
+}
+
+resource "aws_route_table_association" "private" {
+  count          = 2
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+
+# 9. Availability Zones (for dynamic AZ selection)
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
