@@ -422,3 +422,16 @@ data "aws_ami" "amazon_linux" {
 
 
 
+
+
+
+
+
+
+psql -h my-rds-proxy.proxy-abcxyz.us-east-1.rds.amazonaws.com \
+     -U myuser \
+     -d appdb \
+     -p 5432
+
+
+
