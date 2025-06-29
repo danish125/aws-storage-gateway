@@ -247,3 +247,67 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Security Group for VPC endpoints (allow HTTPS from your VPC CIDR)
+resource "aws_security_group" "ssm_endpoints" {
+  name        = "ssm-endpoint-sg"
+  description = "Allow HTTPS traffic for SSM endpoints"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "ssm-endpoint-sg"
+  }
+}
+
+# Create Interface VPC Endpoints (in private subnets)
+locals {
+  ssm_endpoints = [
+    "ssm",
+    "ec2messages",
+    "ssmmessages"
+  ]
+}
+
+resource "aws_vpc_endpoint" "ssm" {
+  for_each = toset(local.ssm_endpoints)
+
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.${each.key}"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = aws_subnet.private[*].id
+  security_group_ids  = [aws_security_group.ssm_endpoints.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name = "vpc-endpoint-${each.key}"
+  }
+}
+
+
