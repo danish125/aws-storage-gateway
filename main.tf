@@ -338,3 +338,87 @@ chmod 600 ~/.pgpass
 psql -h <rds-proxy-endpoint> -U <user> -d <db>
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+# ------------------------
+# IAM Role and Instance Profile
+# ------------------------
+
+resource "aws_iam_role" "ssm_ec2_role" {
+  name = "ec2-ssm-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_policy" {
+  role       = aws_iam_role.ssm_ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "ssm_instance_profile" {
+  name = "ec2-ssm-instance-profile"
+  role = aws_iam_role.ssm_ec2_role.name
+}
+
+# ------------------------
+# EC2 Instance
+# ------------------------
+
+resource "aws_instance" "ssm_ec2" {
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = "t3.micro"
+  subnet_id              = aws_subnet.private[0].id
+  iam_instance_profile   = aws_iam_instance_profile.ssm_instance_profile.name
+  associate_public_ip_address = false
+
+  tags = {
+    Name = "ssm-ec2"
+  }
+
+  user_data = <<-EOF
+              #!/bin/bash
+              yum install -y amazon-ssm-agent
+              systemctl enable amazon-ssm-agent
+              systemctl start amazon-ssm-agent
+              EOF
+}
+
+# ------------------------
+# Get Latest Amazon Linux 2 AMI
+# ------------------------
+
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+
+
