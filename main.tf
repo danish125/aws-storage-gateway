@@ -311,3 +311,30 @@ resource "aws_vpc_endpoint" "ssm" {
 }
 
 
+
+# Install PostgreSQL 16 client on Amazon Linux 2
+sudo amazon-linux-extras enable postgresql16
+sudo yum clean metadata
+sudo yum install -y postgresql16
+
+
+
+
+
+export PGHOST=<rds-proxy-endpoint>
+export PGPORT=5432
+export PGUSER=<your-db-username>
+export PGPASSWORD=<your-password>  # Use cautiously, or use `.pgpass`
+export PGDATABASE=<your-database-name>
+
+
+
+echo "<host>:5432:<db>:<user>:<password>" >> ~/.pgpass
+chmod 600 ~/.pgpass
+
+
+
+
+psql -h <rds-proxy-endpoint> -U <user> -d <db>
+
+
