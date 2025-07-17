@@ -461,3 +461,48 @@ resource "vault_generic_secret" "my_secret" {
   })
 }
 
+
+
+
+
+
+
+
+
+
+
+
+FROM fedora:40
+
+# Set version and download URL
+ENV TFC_AGENT_VERSION=1.22.5
+ENV TFC_AGENT_ZIP=tfc-agent_${TFC_AGENT_VERSION}_linux_amd64.zip
+ENV TFC_AGENT_URL=https://releases.hashicorp.com/tfc-agent/${TFC_AGENT_VERSION}/${TFC_AGENT_ZIP}
+
+# Install dependencies with dnf
+RUN dnf install -y \
+    curl \
+    unzip \
+    ca-certificates \
+    shadow-utils && \
+    dnf clean all
+
+# Download and install tfc-agent
+RUN curl -fsSL -o ${TFC_AGENT_ZIP} ${TFC_AGENT_URL} && \
+    unzip ${TFC_AGENT_ZIP} && \
+    mv tfc-agent /usr/local/bin/tfc-agent && \
+    mv tfc-agent-core /usr/local/bin/tfc-agent-core && \
+    chmod +x /usr/local/bin/tfc-agent /usr/local/bin/tfc-agent-core && \
+    rm ${TFC_AGENT_ZIP}
+
+# Create non-root user
+RUN useradd -m tfc
+USER tfc
+
+# Set working directory
+WORKDIR /home/tfc
+
+# Entrypoint
+ENTRYPOINT ["tfc-agent"]
+
+
