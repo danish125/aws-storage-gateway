@@ -435,3 +435,29 @@ psql -h my-rds-proxy.proxy-abcxyz.us-east-1.rds.amazonaws.com \
 
 
 
+
+
+
+terraform {
+  required_providers {
+    vault = {
+      source  = "hashicorp/vault"
+      version = "~> 3.0"
+    }
+  }
+}
+
+provider "vault" {
+  address = "https://vault.yourcompany.com"
+  token   = var.vault_token
+}
+
+resource "vault_generic_secret" "my_secret" {
+  path = "secret/data/myapp/config"
+
+  data_json = jsonencode({
+    username = "admin"
+    password = "s3cr3t"
+  })
+}
+
