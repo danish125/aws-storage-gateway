@@ -72,3 +72,36 @@ echo 'export PATH=/usr/pgsql-15/bin:$PATH' | sudo tee /etc/profile.d/pgsql15.sh
 source /etc/profile.d/pgsql15.sh
 psql --version
 
+
+
+
+
+curl -fLO https://archives.fedoraproject.org/pub/archive/epel/7/x86_64/Packages/l/libzstd-1.5.5-1.el7.x86_64.rpm
+aws s3 cp libzstd-1.5.5-1.el7.x86_64.rpm s3://<your-bucket>/pg/deps/
+
+
+
+mkdir -p /tmp/pg && cd /tmp/pg
+aws s3 cp s3://<your-bucket>/pg/deps/libzstd-1.5.5-1.el7.x86_64.rpm .
+
+# install the dependency
+sudo rpm -Uvh libzstd-1.5.5-1.el7.x86_64.rpm
+
+# now install the PGDG client (use your exact filenames)
+sudo rpm -Uvh postgresql15-libs-15.14-1PGDG.rhel7.x86_64.rpm postgresql15-15.14-1PGDG.rhel7.x86_64.rpm
+
+
+
+
+rpm -qpR postgresql15-15.14-1PGDG.rhel7.x86_64.rpm
+rpm -qpR postgresql15-libs-15.14-1PGDG.rhel7.x86_64.rpm
+
+
+
+ldd /usr/pgsql-15/bin/psql | grep 'not found' || echo "All good"
+
+
+
+sudo yum localinstall -y *.rpm   # resolves from local folder only
+
+
