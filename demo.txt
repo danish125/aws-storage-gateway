@@ -43,3 +43,32 @@ curl -fLO "$BASE/postgresql15-15.14-1PGDG.rhel7.x86_64.rpm"
 # Sanity check: these MUST say “RPM” (not HTML)
 file postgresql15-*.rpm
 rpm -qp --info postgresql15-15.14-1PGDG.rhel7.x86_64.rpm
+
+
+
+
+
+aws s3 cp postgresql15-libs-15.14-1PGDG.rhel7.x86_64.rpm s3://<your-bucket>/pg/
+aws s3 cp postgresql15-15.14-1PGDG.rhel7.x86_64.rpm        s3://<your-bucket>/pg/
+
+
+
+
+mkdir -p /tmp/pg && cd /tmp/pg
+aws s3 cp s3://<your-bucket>/pg/ . --recursive
+
+# Install libs first, then client (exact filenames, no wildcards)
+sudo rpm -Uvh postgresql15-libs-15.14-1PGDG.rhel7.x86_64.rpm postgresql15-15.14-1PGDG.rhel7.x86_64.rpm
+
+
+
+
+sudo rpm -Uvh *.rpm    # when you’ve staged all required deps locally
+
+
+
+
+echo 'export PATH=/usr/pgsql-15/bin:$PATH' | sudo tee /etc/profile.d/pgsql15.sh
+source /etc/profile.d/pgsql15.sh
+psql --version
+
