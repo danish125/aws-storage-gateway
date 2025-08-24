@@ -105,3 +105,20 @@ ldd /usr/pgsql-15/bin/psql | grep 'not found' || echo "All good"
 sudo yum localinstall -y *.rpm   # resolves from local folder only
 
 
+
+
+-- list_dbs.sql
+SELECT datname
+FROM pg_database
+WHERE datistemplate = false
+ORDER BY datname;
+
+
+export PGPASSWORD='your_password'
+psql -h DB_HOST -p 5432 -U DB_USER -d postgres -At -f /path/to/list_dbs.sql
+
+
+export PGPASSWORD='your_password'
+psql -h DB_HOST -p 5432 -U DB_USER -d postgres -At -f /path/to/list_dbs.sql
+
+
