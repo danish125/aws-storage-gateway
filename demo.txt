@@ -1,0 +1,34 @@
+# Choose one version line — here we use v15
+BASE_URL="https://download.postgresql.org/pub/repos/yum/15/redhat/rhel-7-x86_64"
+
+mkdir -p pgsql15 && cd pgsql15
+curl -O "$BASE_URL/postgresql15-libs-*.x86_64.rpm"
+curl -O "$BASE_URL/postgresql15-*.x86_64.rpm"
+ls -1
+
+
+  aws s3 cp . s3://<your-bucket>/pg/15/ --recursive
+
+
+  mkdir -p /tmp/pg && cd /tmp/pg
+aws s3 cp s3://<your-bucket>/pg/15/ . --recursive
+ls -1
+
+
+  sudo rpm -Uvh postgresql15-libs-*.x86_64.rpm
+sudo rpm -Uvh postgresql15-*.x86_64.rpm
+
+
+
+  sudo yum localinstall -y *.rpm
+
+
+  echo 'export PATH=/usr/pgsql-15/bin:$PATH' | sudo tee /etc/profile.d/pgsql15.sh
+source /etc/profile.d/pgsql15.sh
+
+  psql --version
+
+
+  psql -h <host> -p 5432 -U <user> -d <db>
+# or run a one-off command
+psql "host=<host> user=<user> dbname=<db>" -c "SELECT version();"
