@@ -130,11 +130,22 @@ psql -h DB_HOST -p 5432 -U DB_USER -d postgres -At -f /path/to/list_dbs.sql
 
 
 
+
+ 
+
+
+
+
+
+
+
+
+-- verify_all.psql (psql-friendly IFs)
 \set ON_ERROR_STOP on
 \pset tuples_only on
 \pset format unaligned
 
--- customize if needed
+-- Customize if needed
 \set user   'testuser'
 \set role   'rw_tester_role'
 \set schema 'appschema'
@@ -143,7 +154,8 @@ psql -h DB_HOST -p 5432 -U DB_USER -d postgres -At -f /path/to/list_dbs.sql
 SELECT CASE WHEN EXISTS (
   SELECT 1 FROM pg_roles WHERE rolname = :'user' AND rolcanlogin
 ) THEN 1 ELSE 0 END AS ok_user \gset
-\if :ok_user != 1
+\if :ok_user
+\else
   \echo 'FAIL: user does not exist or cannot login -> ' :user
   \q 10
 \endif
@@ -152,7 +164,8 @@ SELECT CASE WHEN EXISTS (
 SELECT CASE WHEN EXISTS (
   SELECT 1 FROM pg_roles WHERE rolname = :'role'
 ) THEN 1 ELSE 0 END AS ok_role \gset
-\if :ok_role != 1
+\if :ok_role
+\else
   \echo 'FAIL: role not found -> ' :role
   \q 11
 \endif
@@ -160,7 +173,8 @@ SELECT CASE WHEN EXISTS (
 \echo '== Checking membership (user is member of role) =='
 SELECT CASE WHEN pg_has_role(:'user', :'role', 'member')
   THEN 1 ELSE 0 END AS ok_member \gset
-\if :ok_member != 1
+\if :ok_member
+\else
   \echo 'FAIL: ' :user ' is NOT a member of role ' :role
   \q 12
 \endif
@@ -168,7 +182,8 @@ SELECT CASE WHEN pg_has_role(:'user', :'role', 'member')
 \echo '== Checking CONNECT privilege on current database =='
 SELECT CASE WHEN has_database_privilege(:'user', current_database(), 'CONNECT')
   THEN 1 ELSE 0 END AS ok_connect \gset
-\if :ok_connect != 1
+\if :ok_connect
+\else
   \echo 'FAIL: user lacks CONNECT on DB ' :DBNAME
   \q 13
 \endif
@@ -177,7 +192,8 @@ SELECT CASE WHEN has_database_privilege(:'user', current_database(), 'CONNECT')
 SELECT CASE WHEN EXISTS (
   SELECT 1 FROM pg_namespace WHERE nspname = :'schema'
 ) THEN 1 ELSE 0 END AS ok_schema \gset
-\if :ok_schema != 1
+\if :ok_schema
+\else
   \echo 'FAIL: schema not found -> ' :schema
   \q 14
 \endif
@@ -187,7 +203,8 @@ SELECT CASE WHEN
   has_schema_privilege(:'user', :'schema', 'USAGE')
   OR has_schema_privilege(:'role', :'schema', 'USAGE')
 THEN 1 ELSE 0 END AS ok_usage \gset
-\if :ok_usage != 1
+\if :ok_usage
+\else
   \echo 'FAIL: neither user nor role has USAGE on schema ' :schema
   \q 15
 \endif
@@ -198,5 +215,6 @@ SELECT :'user' AS "user",
        :'role' AS "role",
        current_database() AS "database",
        :'schema' AS "schema";
+
 
 
