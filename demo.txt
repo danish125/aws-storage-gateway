@@ -32,3 +32,14 @@ source /etc/profile.d/pgsql15.sh
   psql -h <host> -p 5432 -U <user> -d <db>
 # or run a one-off command
 psql "host=<host> user=<user> dbname=<db>" -c "SELECT version();"
+
+
+
+
+BASE="https://download.postgresql.org/pub/repos/yum/15/redhat/rhel-7-x86_64"
+curl -fLO "$BASE/postgresql15-libs-15.14-1PGDG.rhel7.x86_64.rpm"
+curl -fLO "$BASE/postgresql15-15.14-1PGDG.rhel7.x86_64.rpm"
+
+# Sanity check: these MUST say “RPM” (not HTML)
+file postgresql15-*.rpm
+rpm -qp --info postgresql15-15.14-1PGDG.rhel7.x86_64.rpm
