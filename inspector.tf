@@ -51,3 +51,15 @@ resource "aws_inspector2_organization_configuration" "this" {
 
   depends_on = [aws_inspector2_delegated_admin_account.this]
 }
+
+
+
+# Immediately enable Inspector in existing accounts (per region)
+resource "aws_inspector2_enabler" "members" {
+  provider       = aws.delegated
+  for_each       = toset(var.member_account_ids)
+  account_ids    = [each.key]
+  resource_types = ["EC2", "ECR", "LAMBDA"]
+
+  depends_on = [aws_inspector2_organization_configuration.this]
+}
