@@ -63,3 +63,75 @@ resource "aws_inspector2_enabler" "members" {
 
   depends_on = [aws_inspector2_organization_configuration.this]
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+data "aws_caller_identity" "delegated" {
+#   provider = aws.delegated
+}
+resource "aws_inspector2_enabler" "self" {
+#   provider       = aws.delegated
+  # account_ids is optional in recent providers; if yours requires it, uncomment next line:
+  # account_ids    = [data.aws_caller_identity.delegated.account_id]
+  resource_types = ["EC2", "ECR", "LAMBDA"]
+  account_ids    = [data.aws_caller_identity.delegated.account_id]
+
+}
+# Enable org-wide auto-enrollment for NEW accounts (per region)
+resource "aws_inspector2_organization_configuration" "this" {
+#   provider = aws.delegated
+  lifecycle { create_before_destroy = true }
+
+  auto_enable {
+    ec2    = true
+    ecr    = true
+    lambda = true
+  }
+
+  depends_on = [aws_inspector2_enabler.self ]
+}
+
+
+
+# Immediately enable Inspector in existing accounts (per region)
+# resource "aws_inspector2_enabler" "members" {
+# #   provider       = aws.delegated
+#   for_each       = toset(local.member_account_ids)
+#   account_ids    = [each.key]
+#   resource_types = ["EC2", "ECR", "LAMBDA"]
+
+#   depends_on = [aws_inspector2_organization_configuration.this]
+# }
+
+
+
+# MANAGEMENT account: associate first, then enable
+resource "aws_inspector2_member_association" "management" {
+#   provider   = aws.delegated
+  account_id = "339713106964"
+  depends_on = [aws_inspector2_enabler.self]
+}
+
+resource "aws_inspector2_enabler" "management" {
+#   provider       = aws.delegated
+  account_ids    = ["339713106964"]
+  resource_types = ["EC2", "ECR", "LAMBDA", "LAMBDA_CODE"]
+  depends_on     = [aws_inspector2_member_association.management]
+}
+locals {
+  member_account_ids = ["339713106964"]
+}
