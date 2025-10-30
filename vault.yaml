@@ -1,0 +1,78 @@
+- name: Generate AWS Auth Payload
+  id: aws-auth
+  run: |
+    # Install required tools
+    sudo apt-get update && sudo apt-get install -y jq curl
+    
+    # Set variables
+    TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
+    DATE=$(date -u +"%Y%m%d")
+    REGION="us-east-1"
+    SERVICE="sts"
+    
+    # Get AWS credentials from environment (CodeBuild provides these)
+    ACCESS_KEY=$AWS_ACCESS_KEY_ID
+    SECRET_KEY=$AWS_SECRET_ACCESS_KEY
+    SESSION_TOKEN=$AWS_SESSION_TOKEN
+    
+    # Create the canonical request
+    METHOD="POST"
+    URI="/"
+    QUERY_STRING=""
+    CANONICAL_HEADERS="host:sts.amazonaws.com\nx-amz-date:${TIMESTAMP}\n"
+    SIGNED_HEADERS="host;x-amz-date"
+    PAYLOAD="Action=GetCallerIdentity&Version=2011-06-15"
+    PAYLOAD_HASH=$(echo -n "$PAYLOAD" | sha256sum | cut -d' ' -f1)
+    
+    CANONICAL_REQUEST="${METHOD}\n${URI}\n${QUERY_STRING}\n${CANONICAL_HEADERS}\n${SIGNED_HEADERS}\n${PAYLOAD_HASH}"
+    
+    # Create string to sign
+    ALGORITHM="AWS4-HMAC-SHA256"
+    CREDENTIAL_SCOPE="${DATE}/${REGION}/${SERVICE}/aws4_request"
+    STRING_TO_SIGN="${ALGORITHM}\n${TIMESTAMP}\n${CREDENTIAL_SCOPE}\n$(echo -n "$CANONICAL_REQUEST" | sha256sum | cut -d' ' -f1)"
+    
+    # Calculate signature
+    function hmac_sha256 {
+      key="$1"
+      data="$2"
+      echo -n "$data" | openssl dgst -sha256 -mac HMAC -macopt "$key" | sed 's/^.* //'
+    }
+    
+    DATE_KEY=$(echo -n "$DATE" | openssl dgst -sha256 -mac HMAC -macopt "key:AWS4${SECRET_KEY}" -binary | base64)
+    DATE_REGION_KEY=$(echo -n "$REGION" | openssl dgst -sha256 -mac HMAC -macopt "key:$(echo "$DATE_KEY" | base64 -d)" -binary | base64)
+    DATE_REGION_SERVICE_KEY=$(echo -n "$SERVICE" | openssl dgst -sha256 -mac HMAC -macopt "key:$(echo "$DATE_REGION_KEY" | base64 -d)" -binary | base64)
+    SIGNING_KEY=$(echo -n "aws4_request" | openssl dgst -sha256 -mac HMAC -macopt "key:$(echo "$DATE_REGION_SERVICE_KEY" | base64 -d)" -binary | base64)
+    
+    SIGNATURE=$(echo -n "$STRING_TO_SIGN" | openssl dgst -sha256 -mac HMAC -macopt "key:$(echo "$SIGNING_KEY" | base64 -d)" | sed 's/^.* //')
+    
+    # Create authorization header
+    AUTHORIZATION="AWS4-HMAC-SHA256 Credential=${ACCESS_KEY}/${CREDENTIAL_SCOPE}, SignedHeaders=${SIGNED_HEADERS}, Signature=${SIGNATURE}"
+    
+    # Create the auth payload
+    AUTH_PAYLOAD=$(cat <<EOF
+    {
+      "role": "your-vault-role-name",
+      "iam_http_request_method": "POST",
+      "iam_request_url": "https://sts.amazonaws.com/",
+      "iam_request_body": "Action=GetCallerIdentity&Version=2011-06-15",
+      "iam_request_headers": "{\"Authorization\": [\"${AUTHORIZATION}\"], \"Content-Type\": [\"application/x-www-form-urlencoded; charset=utf-8\"], \"X-Amz-Date\": [\"${TIMESTAMP}\"]}"
+    }
+    EOF
+    )
+    
+    # Output for next step (properly escaped)
+    echo "auth_payload<<EOF" >> $GITHUB_OUTPUT
+    echo "$AUTH_PAYLOAD" >> $GITHUB_OUTPUT
+    echo "EOF" >> $GITHUB_OUTPUT
+ 
+- name: Import Secrets
+  id: import-secrets
+  uses: hashicorp/vault-action@v2
+  with:
+    url: https://vault.mycompany.com:8200
+    caCertificate: ${{ secrets.VAULT_CA_CERT }}
+    method: aws
+    role: your-vault-role-name
+    authPayload: ${{ steps.aws-auth.outputs.auth_payload }}
+    secrets: |
+      secret/data/your-secret secretKey | SECRET_VALUE
